@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="km" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ប្រព័ន្ធប្ដូរវេនតុការងារ (Staff Rotation App)</title>
+    <!-- Telegram Web App SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Kantumruy Pro & Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Kantumruy+Pro:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        tgBg: 'var(--tg-theme-bg-color, #0b1329)',
+                        tgSecBg: 'var(--tg-theme-secondary-bg-color, #17223b)',
+                        tgText: 'var(--tg-theme-text-color, #f8fafc)',
+                        tgHint: 'var(--tg-theme-hint-color, #94a3b8)',
+                        tgBtn: 'var(--tg-theme-button-color, #2563eb)',
+                        tgBtnText: 'var(--tg-theme-button-text-color, #ffffff)',
+                    },
+                    fontFamily: {
+                        sans: ['Kantumruy Pro', 'Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        body {
+            background-color: var(--tg-theme-bg-color, #0b1329);
+            color: var(--tg-theme-text-color, #f8fafc);
+            font-family: 'Kantumruy Pro', 'Inter', sans-serif;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* Glassmorphism */
+        .glass-panel {
+            background: rgba(23, 34, 59, 0.7);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .glass-card {
+            background: rgba(30, 41, 59, 0.5);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        /* Active Tab Indicator */
+        .tab-btn.active {
+            color: #38bdf8;
+            background: rgba(56, 189, 248, 0.12);
+            border-color: rgba(56, 189, 248, 0.3);
+        }
+
+        /* Rotation Animation */
+        .desk-card-anim {
+            transition: all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .desk-card-anim.animating {
+            transform: scale(0.95) translateY(6px);
+            opacity: 0.5;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.2);
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col justify-between overflow-x-hidden antialiased p-3 max-w-md mx-auto">
+
+    <!-- Header Banner -->
+    <header class="mb-3 flex items-center justify-between glass-panel p-3 rounded-2xl">
+        <div class="flex items-center gap-2.5">
+            <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-500 flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
+                <i class="fa-solid fa-desktop text-lg"></i>
+            </div>
+            <div>
+                <h1 class="text-base font-bold leading-tight text-white">ប្រព័ន្ធប្ដូរវេនតុការងារ</h1>
+                <p class="text-[11px] text-slate-400">7 ទូរកុំព្យូទ័រ • ប្ដូរវេនស្វ័យប្រវត្តិ</p>
+            </div>
+        </div>
+        <button onclick="rotateStaff()" class="py-2 px-3 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-md shadow-blue-600/30 flex items-center gap-1.5 active:scale-95 transition">
+            <i class="fa-solid fa-rotate"></i>
+            <span>Rotate</span>
+        </button>
+    </header>
+
+    <!-- Main Navigation Tabs -->
+    <nav class="grid grid-cols-3 gap-1.5 mb-3 bg-slate-900/60 p-1 rounded-2xl border border-slate-800">
+        <button id="tab-grid" onclick="switchTab('grid')" class="tab-btn active py-2 rounded-xl text-xs font-semibold text-slate-400 border border-transparent flex items-center justify-center gap-1.5 transition">
+            <i class="fa-solid fa-border-all"></i>
+            <span>តុការងារ</span>
+        </button>
+        <button id="tab-calendar" onclick="switchTab('calendar')" class="tab-btn py-2 rounded-xl text-xs font-semibold text-slate-400 border border-transparent flex items-center justify-center gap-1.5 transition">
+            <i class="fa-solid fa-calendar-days"></i>
+            <span>កាលវិភាគ</span>
+        </button>
+        <button id="tab-settings" onclick="switchTab('settings')" class="tab-btn py-2 rounded-xl text-xs font-semibold text-slate-400 border border-transparent flex items-center justify-center gap-1.5 transition">
+            <i class="fa-solid fa-sliders"></i>
+            <span>ការកំណត់</span>
+        </button>
+    </nav>
+
+    <!-- TAB 1: WORKSPACE GRID VIEW -->
+    <section id="view-grid" class="flex-1 space-y-3">
+        <div class="flex justify-between items-center px-1">
+            <span class="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                <i class="fa-solid fa-clock text-blue-400"></i> កាលវិភាគថ្ងៃនេះ
+            </span>
+            <span id="currentDateDisplay" class="text-[11px] font-medium text-slate-400"></span>
+        </div>
+
+        <!-- 7 Desks Grid -->
+        <div id="deskContainer" class="space-y-2">
+            <!-- Dynamically Rendered -->
+        </div>
+
+        <!-- Quick Tools -->
+        <div class="grid grid-cols-2 gap-2 pt-2">
+            <button onclick="openSwapModal()" class="glass-card py-2.5 px-3 rounded-xl text-xs font-semibold text-slate-200 hover:bg-slate-800/80 flex items-center justify-center gap-2 active:scale-95 transition">
+                <i class="fa-solid fa-right-left text-indigo-400"></i> ប្ដូរទីតាំង ២ នាក់
+            </button>
+            <button onclick="copySchedule()" class="glass-card py-2.5 px-3 rounded-xl text-xs font-semibold text-slate-200 hover:bg-slate-800/80 flex items-center justify-center gap-2 active:scale-95 transition">
+                <i class="fa-solid fa-copy text-emerald-400"></i> ចម្លងកាលវិភាគ
+            </button>
+        </div>
+    </section>
+
+    <!-- TAB 2: CALENDAR COMPONENT -->
+    <section id="view-calendar" class="flex-1 space-y-3 hidden">
+        <div class="glass-panel p-3.5 rounded-2xl space-y-3">
+            <div class="flex justify-between items-center">
+                <button onclick="changeMonth(-1)" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">
+                    <i class="fa-solid fa-chevron-left text-xs"></i>
+                </button>
+                <h3 id="calendarMonthYear" class="text-sm font-bold text-white"></h3>
+                <button onclick="changeMonth(1)" class="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300">
+                    <i class="fa-solid fa-chevron-right text-xs"></i>
+                </button>
+            </div>
+
+            <!-- Calendar Days Header -->
+            <div class="grid grid-cols-7 gap-1 text-center text-[10px] font-bold text-slate-400">
+                <span>អាទិត្យ</span><span>ចន្ទ</span><span>អង្គារ</span><span>ពុធ</span><span>ព្រហស្បតិ៍</span><span>សុក្រ</span><span>សៅរ៍</span>
+            </div>
+
+            <!-- Calendar Grid -->
+            <div id="calendarGrid" class="grid grid-cols-7 gap-1 text-center text-xs">
+                <!-- Dynamically Rendered -->
+            </div>
+        </div>
+
+        <!-- Historical / Future Details Card -->
+        <div class="glass-panel p-3.5 rounded-2xl space-y-2">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                <h4 class="text-xs font-bold text-blue-400 flex items-center gap-1.5">
+                    <i class="fa-solid fa-calendar-check"></i> កាលវិភាគថ្ងៃជ្រើសរើស
+                </h4>
+                <span id="selectedDateTitle" class="text-[11px] font-semibold text-slate-300"></span>
+            </div>
+            <div id="selectedDateSchedule" class="space-y-1.5 pt-1 text-xs">
+                <!-- Selected Date Schedule -->
+            </div>
+        </div>
+    </section>
+
+    <!-- TAB 3: SETTINGS PANEL -->
+    <section id="view-settings" class="flex-1 space-y-3 hidden">
+        <div class="glass-panel p-3.5 rounded-2xl space-y-3">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                <h3 class="text-xs font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-users-gear text-blue-400"></i> កែប្រែបុគ្គលិក & តួនាទី (៧ នាក់)
+                </h3>
+                <button onclick="resetToDefault()" class="text-[11px] text-rose-400 hover:underline">
+                    Reset ដើម
+                </button>
+            </div>
+
+            <!-- Staff Edit List -->
+            <div id="settingsStaffList" class="space-y-2.5 max-h-[340px] overflow-y-auto pr-1">
+                <!-- Dynamically Rendered -->
+            </div>
+        </div>
+
+        <!-- Trigger Config -->
+        <div class="glass-panel p-3.5 rounded-2xl space-y-2">
+            <h4 class="text-xs font-bold text-slate-200">ម៉ោងកំណត់ប្ដូរវេនស្វ័យប្រវត្តិ</h4>
+            <div class="flex items-center justify-between text-xs pt-1">
+                <span class="text-slate-400">ប្ដូរវេនរៀងរាល់ព្រឹកម៉ោង</span>
+                <input type="time" value="08:00" class="bg-slate-800 border border-slate-700 text-white text-xs rounded-lg px-2 py-1 outline-none">
+            </div>
+        </div>
+    </section>
+
+    <!-- Modal: Swap Staff -->
+    <div id="swapModal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-xs p-4 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+                <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                    <i class="fa-solid fa-arrows-rotate text-indigo-400"></i> ប្ដូរទីតាំងរវាង ២ នាក់
+                </h3>
+                <button onclick="closeSwapModal()" class="text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="text-slate-400 mb-1 block">ជ្រើសរើសបុគ្គលិកទី ១</label>
+                    <select id="swapSelect1" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2 text-white outline-none"></select>
+                </div>
+                <div>
+                    <label class="text-slate-400 mb-1 block">ជ្រើសរើសបុគ្គលិកទី ២</label>
+                    <select id="swapSelect2" class="w-full bg-slate-800 border border-slate-700 rounded-xl p-2 text-white outline-none"></select>
+                </div>
+            </div>
+
+            <div class="flex gap-2 pt-1">
+                <button onclick="closeSwapModal()" class="flex-1 py-2 rounded-xl bg-slate-800 text-xs text-slate-300 font-semibold">បោះបង់</button>
+                <button onclick="confirmSwap()" class="flex-1 py-2 rounded-xl bg-blue-600 text-xs text-white font-semibold">ប្ដូរទីតាំង</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-12 left-1/2 -translate-x-1/2 bg-slate-800 text-white border border-slate-700 text-xs px-4 py-2 rounded-full shadow-2xl opacity-0 pointer-events-none transition-all duration-300 flex items-center gap-2 z-50">
+        <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400"></i>
+        <span id="toastMsg">សារជូនដំណឹង</span>
+    </div>
+
+    <!-- App Logic -->
+    <script>
+        const tg = window.Telegram?.WebApp;
+        if (tg) {
+            tg.ready();
+            tg.expand();
+        }
+
+        const AVATAR_COLORS = [
+            'from-blue-500 to-indigo-600',
+            'from-emerald-500 to-teal-600',
+            'from-amber-500 to-orange-600',
+            'from-rose-500 to-pink-600',
+            'from-purple-500 to-violet-600',
+            'from-cyan-500 to-blue-600',
+            'from-fuchsia-500 to-pink-600'
+        ];
+
+        const DEFAULT_STAFF = [
+            { name: "សុខ ជា", role: "Senior Dev", color: 0 },
+            { name: "ចាន់ណា", role: "Designer", color: 1 },
+            { name: "វិបុល", role: "IT Support", color: 2 },
+            { name: "ណារី", role: "Accountant", color: 3 },
+            { name: "រិទ្ធី", role: "Network Eng", color: 4 },
+            { name: "មករា", role: "QA Tester", color: 5 },
+            { name: "សុភា", role: "Admin", color: 6 }
+        ];
+
+        let state = {
+            staff: [...DEFAULT_STAFF],
+            baseDate: new Date('2026-01-01T00:00:00'), // Anchor date for calculation
+            rotationOffset: 0
+        };
+
+        let currentCalendarDate = new Date();
+        let selectedCalendarDate = new Date();
+
+        function loadState() {
+            const saved = localStorage.getItem('tg_rotation_app_state_v2');
+            if (saved) {
+                try {
+                    const parsed = JSON.parse(saved);
+                    if (Array.isArray(parsed.staff) && parsed.staff.length === 7) {
+                        state.staff = parsed.staff;
+                    }
+                    if (typeof parsed.rotationOffset === 'number') {
+                        state.rotationOffset = parsed.rotationOffset;
+                    }
+                } catch(e) { console.error(e); }
+            }
+        }
+
+        function saveState() {
+            localStorage.setItem('tg_rotation_app_state_v2', JSON.stringify({
+                staff: state.staff,
+                rotationOffset: state.rotationOffset
+            }));
+        }
+
+        // Calculate rotation array for specific date
+        function getStaffForDate(date) {
+            const diffDays = Math.floor((date - state.baseDate) / (1000 * 60 * 60 * 24));
+            const totalShift = ((diffDays + state.rotationOffset) % 7 + 7) % 7;
+            
+            let rotated = [...state.staff];
+            for (let i = 0; i < totalShift; i++) {
+                const last = rotated.pop();
+                rotated.unshift(last);
+            }
+            return rotated;
+        }
+
+        // Render Workspace Grid
+        function renderDeskGrid(animating = false) {
+            const container = document.getElementById('deskContainer');
+            container.innerHTML = '';
+
+            const todayStaff = getStaffForDate(new Date());
+
+            todayStaff.forEach((person, index) => {
+                const deskNum = index + 1;
+                const card = document.createElement('div');
+                card.className = `desk-card-anim glass-panel p-2.5 rounded-2xl flex items-center justify-between border border-slate-800 ${animating ? 'animating' : ''}`;
+
+                card.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <div class="w-9 h-9 rounded-xl bg-gradient-to-br ${AVATAR_COLORS[person.color || 0]} flex items-center justify-center text-white font-bold text-xs shadow-md">
+                            តុ ${deskNum}
+                        </div>
+                        <div>
+                            <div class="text-xs font-bold text-white flex items-center gap-1.5">
+                                ${escapeHtml(person.name)}
+                            </div>
+                            <span class="text-[10px] px-2 py-0.5 rounded-md bg-slate-800 text-slate-400 font-medium border border-slate-700/50">
+                                ${escapeHtml(person.role || 'Staff')}
+                            </span>
+                        </div>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-[10px] text-blue-400 font-semibold bg-blue-500/10 px-2 py-1 rounded-lg border border-blue-500/20">
+                            ទូរកុំព្យូទ័រ ${deskNum}
+                        </span>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+
+            document.getElementById('currentDateDisplay').innerText = new Date().toLocaleDateString('km-KH', { weekday: 'short', day: 'numeric', month: 'short' });
+        }
+
+        // Rotate Staff
+        function rotateStaff() {
+            state.rotationOffset = (state.rotationOffset + 1) % 7;
+            saveState();
+
+            renderDeskGrid(true);
+            setTimeout(() => renderDeskGrid(false), 200);
+
+            if (tg?.HapticFeedback) tg.HapticFeedback.notificationOccurred('success');
+            showToast('បានប្ដូរវេនទៅតុបន្ទាប់!', 'fa-rotate text-blue-400');
+        }
+
+        // Tab Switcher
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`tab-${tab}`).classList.add('active');
+
+            document.getElementById('view-grid').classList.add('hidden');
+            document.getElementById('view-calendar').classList.add('hidden');
+            document.getElementById('view-settings').classList.add('hidden');
+
+            document.getElementById(`view-${tab}`).classList.remove('hidden');
+
+            if (tab === 'calendar') renderCalendar();
+            if (tab === 'settings') renderSettings();
+        }
+
+        // Calendar Component
+        function renderCalendar() {
+            const year = currentCalendarDate.getFullYear();
+            const month = currentCalendarDate.getMonth();
+
+            const monthNamesKh = ["មករា", "កុម្ភៈ", "មីនា", "មេសា", "ឧសភា", "មិថុនា", "កក្កដា", "សីហា", "កញ្ញា", "តុលា", "វិច្ឆិកា", "ធ្នូ"];
+            document.getElementById('calendarMonthYear').innerText = `${monthNamesKh[month]} ${year}`;
+
+            const firstDay = new Date(year, month, 1).getDay();
+            const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+            const grid = document.getElementById('calendarGrid');
+            grid.innerHTML = '';
+
+            // Blank cells
+            for (let i = 0; i < firstDay; i++) {
+                grid.appendChild(document.createElement('div'));
+            }
+
+            const today = new Date();
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const cellDate = new Date(year, month, day);
+                const btn = document.createElement('button');
+                btn.className = `py-2 rounded-xl text-xs font-semibold transition border ${
+                    cellDate.toDateString() === selectedCalendarDate.toDateString()
+                        ? 'bg-blue-600 text-white border-blue-400 shadow-md'
+                        : cellDate.toDateString() === today.toDateString()
+                        ? 'bg-slate-800 text-blue-400 border-blue-500/40'
+                        : 'bg-slate-800/40 text-slate-300 border-slate-800 hover:bg-slate-700/60'
+                }`;
+                btn.innerText = day;
+                btn.onclick = () => {
+                    selectedCalendarDate = cellDate;
+                    renderCalendar();
+                };
+                grid.appendChild(btn);
+            }
+
+            renderSelectedDateDetails();
+        }
+
+        function changeMonth(delta) {
+            currentCalendarDate.setMonth(currentCalendarDate.getMonth() + delta);
+            renderCalendar();
+        }
+
+        function renderSelectedDateDetails() {
+            document.getElementById('selectedDateTitle').innerText = selectedCalendarDate.toLocaleDateString('km-KH', { weekday: 'short', day: 'numeric', month: 'short' });
+            
+            const schedule = getStaffForDate(selectedCalendarDate);
+            const container = document.getElementById('selectedDateSchedule');
+            container.innerHTML = '';
+
+            schedule.forEach((person, idx) => {
+                const item = document.createElement('div');
+                item.className = 'flex justify-between items-center bg-slate-800/50 p-2 rounded-xl border border-slate-800';
+                item.innerHTML = `
+                    <span class="text-slate-400 font-medium">តុទី ${idx + 1}</span>
+                    <span class="text-white font-bold">${escapeHtml(person.name)} <span class="text-[10px] text-slate-500">(${escapeHtml(person.role)})</span></span>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        // Settings Component
+        function renderSettings() {
+            const list = document.getElementById('settingsStaffList');
+            list.innerHTML = '';
+
+            state.staff.forEach((person, index) => {
+                const item = document.createElement('div');
+                item.className = 'bg-slate-800/60 p-2.5 rounded-xl border border-slate-700/60 space-y-2';
+                item.innerHTML = `
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs font-bold text-blue-400 w-12">តុ ${index + 1}</span>
+                        <input type="text" value="${escapeHtml(person.name)}" onchange="updateStaffDetail(${index}, 'name', this.value)" placeholder="ឈ្មោះបុគ្គលិក" class="flex-1 bg-slate-900 border border-slate-700 text-white text-xs rounded-lg px-2 py-1.5 outline-none focus:border-blue-500">
+                    </div>
+                    <div class="flex items-center gap-2 pl-14">
+                        <input type="text" value="${escapeHtml(person.role)}" onchange="updateStaffDetail(${index}, 'role', this.value)" placeholder="តួនាទី" class="flex-1 bg-slate-900 border border-slate-700 text-slate-300 text-xs rounded-lg px-2 py-1.5 outline-none focus:border-blue-500">
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        function updateStaffDetail(index, field, value) {
+            if (value.trim()) {
+                state.staff[index][field] = value.trim();
+                saveState();
+                renderDeskGrid();
+                showToast('បានរក្សាទុកការប្រែប្រួល!', 'fa-circle-check text-emerald-400');
+            }
+        }
+
+        // Swap Modal
+        function openSwapModal() {
+            const s1 = document.getElementById('swapSelect1');
+            const s2 = document.getElementById('swapSelect2');
+            s1.innerHTML = ''; s2.innerHTML = '';
+
+            const current = getStaffForDate(new Date());
+            current.forEach((p, i) => {
+                s1.add(new Option(`តុ ${i + 1}: ${p.name}`, i));
+                s2.add(new Option(`តុ ${i + 1}: ${p.name}`, i));
+            });
+            s2.selectedIndex = 1;
+
+            document.getElementById('swapModal').classList.remove('hidden');
+        }
+
+        function closeSwapModal() {
+            document.getElementById('swapModal').classList.add('hidden');
+        }
+
+        function confirmSwap() {
+            const idx1 = parseInt(document.getElementById('swapSelect1').value);
+            const idx2 = parseInt(document.getElementById('swapSelect2').value);
+
+            if (idx1 === idx2) return;
+
+            const temp = state.staff[idx1];
+            state.staff[idx1] = state.staff[idx2];
+            state.staff[idx2] = temp;
+
+            saveState();
+            renderDeskGrid();
+            closeSwapModal();
+            showToast('បានប្ដូរទីតាំងរួចរាល់!', 'fa-right-left text-indigo-400');
+        }
+
+        function resetToDefault() {
+            if (confirm('តើអ្នកប្រាកដថាចង់ Reset ទៅទម្រង់ដើមវិញទេ?')) {
+                state.staff = [...DEFAULT_STAFF];
+                state.rotationOffset = 0;
+                saveState();
+                renderDeskGrid();
+                renderSettings();
+                showToast('បាន Reset រួចរាល់!', 'fa-rotate-left text-slate-400');
+            }
+        }
+
+        function copySchedule() {
+            const current = getStaffForDate(new Date());
+            let text = `📋 កាលវិភាគតុការងារថ្ងៃនេះ\n───────────────────\n`;
+            current.forEach((p, i) => text += `🔹 តុទី ${i + 1} ➡️ ${p.name} (${p.role})\n`);
+
+            const input = document.createElement('textarea');
+            input.value = text;
+            document.body.appendChild(input);
+            input.select();
+            document.execCommand('copy');
+            document.body.removeChild(input);
+
+            showToast('បានចម្លងទៅ Clipboard!', 'fa-copy text-emerald-400');
+        }
+
+        function showToast(msg, icon) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMsg').innerText = msg;
+            document.getElementById('toastIcon').className = `fa-solid ${icon}`;
+            toast.classList.remove('opacity-0', 'pointer-events-none');
+            setTimeout(() => toast.classList.add('opacity-0', 'pointer-events-none'), 2200);
+        }
+
+        function escapeHtml(str) {
+            return (str || '').replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            loadState();
+            renderDeskGrid();
+        });
+    </script>
+</body>
+</html>
